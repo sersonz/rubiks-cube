@@ -3,6 +3,7 @@ import numpy as np
 from utils import *
 import tensorflow as tf
 from tensorflow import keras
+import random
 
 class CubeModel:
 	def __init__(self):
@@ -17,6 +18,17 @@ class CubeModel:
 		value_output = tf.keras.layers.Dense(1, name="value")(value_layer)
 		policy_output = tf.keras.layers.Dense(12, name="policy")(policy_layer)
 		self.model = tf.keras.Model(inputs=model_input, outputs=[value_output, policy_output])
+		
+	def adi_step(self, k=100, l=100):
+		'''
+		Performs an autodidactic iteration step.
+		'''
+		samples = []
+		for i in range(l):
+			formula = []
+			for j in range(k):
+				formula.append(random.choice(ACTIONS))
+			samples.append((pycuber.cube(" ".join(formula)), k))
 	
 	def getState(self):
 		def compare(x):

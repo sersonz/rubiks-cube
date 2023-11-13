@@ -41,5 +41,6 @@ EDGE_COLORS = {
     'red': 1
 }
 
+ACTIONS = ["F", "B", "U", "D", "L", "R", "F'", "B'", "U'", "D'", "L'", "R'"]
 
 	
