@@ -1,0 +1,6 @@
+pycuber
+numpy
+torch
+tensorflow
+keras
+tqdm
