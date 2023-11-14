@@ -94,16 +94,14 @@ def train(k=5, l=100):
             yv = 0
             yp = ""
 
-            for a in ACTIONS:
+            for aidx, a in enumerate(ACTIONS):
                 cube = xi.copy()
                 cube(a)
                 vi, pi = adinet(get_state(cube))
-                # add R (-1 if not goal, else 1)
+                vi += 1 if cube.is_solved() else -1
                 if vi > yv:
                     yv = vi
-                    # is this right?
-                    # ypi = argmax_a(vi) so should be an idx right?
-                    yp = a
+                    yp = aidx # argmax_a(R + vi)
 
     #     for each training sample:
     #         Perform a depth-1 breadth-first search (BFS)

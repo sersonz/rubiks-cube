@@ -1,3 +1,6 @@
+import numpy as np
+import pycuber as pc
+
 CORNERS = [
     {"white", "orange", "blue"},
     {"white", "orange", "green"},
@@ -49,6 +52,7 @@ def get_state(cube):
         elems = list(x.facings.keys())
         elems.sort()
         return elems
+
     state = np.zeros((20, 24))
     i = 0
     corner_cubes = list(cube.select_type("corner"))
@@ -58,11 +62,22 @@ def get_state(cube):
     for corner in corner_cubes:
         cubes = list(corner.facings.keys())
         cubes.sort()
-        state[i][3*CORNERS.index(set(map(lambda x: x.colour, corner.facings.values()))) + CORNER_COLORS[corner.facings[cubes[0]].colour]] = 1
+        state[i][
+            3 * CORNERS.index(set(map(lambda x: x.colour, corner.facings.values())))
+            + CORNER_COLORS[corner.facings[cubes[0]].colour]] = 1
         i += 1
     for edge in edge_cubes:
         cubes = list(edge.facings.keys())
         cubes.sort()
-        state[i][2*EDGES.index(set(map(lambda key: edge.facings[key].colour, cubes))) + EDGE_COLORS[edge.facings[cubes[0]].colour]] = 1
+        state[i][2 *
+                 EDGES.index(set(map(lambda key: edge.facings[key].colour, cubes))) +
+                 EDGE_COLORS[edge.facings[cubes[0]].colour]] = 1
         i += 1
     return state
+
+
+solved_cube = pc.Cube()
+
+
+def is_solved(cube):
+    return cube == solved_cube
