@@ -1,55 +1,46 @@
 import pycuber
 import numpy as np
-from utils import *
-import tensorflow as tf
-from tensorflow import keras
+import argparse
 import random
+import torch
+from utils import ACTIONS, get_state
+from model import ADINet, train
 
-class CubeModel:
-	def __init__(self):
-		self.cube = pycuber.Cube()
-		self.solved_cube = self.cube.copy()
-	    # Make model
-		model_input = keras.Input(shape=(20*24,))
-		first_layer = tf.keras.layers.Dense(4096, activation="relu")(model_input)
-		second_layer = tf.keras.layers.Dense(1024, activation="relu")(first_layer)
-		value_layer = tf.keras.layers.Dense(480, activation="relu")(second_layer)
-		policy_layer = tf.keras.layers.Dense(480, activation="relu")(second_layer)
-		value_output = tf.keras.layers.Dense(1, name="value")(value_layer)
-		policy_output = tf.keras.layers.Dense(12, name="policy")(policy_layer)
-		self.model = tf.keras.Model(inputs=model_input, outputs=[value_output, policy_output])
-		
-	def adi_step(self, k=100, l=100):
-		'''
-		Performs an autodidactic iteration step.
-		'''
-		samples = []
-		for i in range(l):
-			formula = []
-			for j in range(k):
-				formula.append(random.choice(ACTIONS))
-			samples.append((pycuber.cube(" ".join(formula)), k))
-	
-	def getState(self):
-		def compare(x):
-			elems = list(x.facings.keys())
-			elems.sort()
-			return elems
-		state = np.zeros((20, 24))
-		i = 0
-		corner_cubes = list(self.cube.select_type("corner"))
-		corner_cubes.sort(key=compare)
-		edge_cubes = list(self.cube.select_type("edge"))
-		edge_cubes.sort(key=compare)
-		for corner in corner_cubes:
-			cubes = list(corner.facings.keys())
-			cubes.sort()
-			state[i][3*CORNERS.index(set(map(lambda x: x.colour, corner.facings.values()))) + CORNER_COLORS[corner.facings[cubes[0]].colour]] = 1
-			i += 1
-		for edge in edge_cubes:
-			cubes = list(edge.facings.keys())
-			cubes.sort()
-			state[i][2*EDGES.index(set(map(lambda key: edge.facings[key].colour, cubes))) + EDGE_COLORS[edge.facings[cubes[0]].colour]] = 1
-			i += 1
-		return state
-	
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-m",
+    "--model",
+    type=str,
+    default="./model.pth",
+    help="The path to save/load the ADINet",
+)
+parser.add_argument(
+    "-t",
+    "--train",
+    action="store_true",
+    help="Whether to train the ADINet",
+)
+parser.add_argument(
+    "-k",
+    type=int,
+    help="Number of random moves to apply to each cube when generating training samples",
+)
+parser.add_argument(
+    "-l",
+    type=int,
+    help="Number of cubes to scramble when generating training samples",
+)
+parser.add_argument("-c", "--count", type=int, default=1)
+args = parser.parse_args()
+
+# Init + train ADINet
+
+if args.train:
+    adinet = train(args.k, args.l, path=args.model)
+    adinet.save(args.model)
+
+adinet = torch.load(args.model)
+
+# gen some test cubes
+# solve with ADINet + MCTS solver
+# score/eval
