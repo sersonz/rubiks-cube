@@ -5,7 +5,8 @@ import pycuber as pc
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import ACTIONS, get_state
+from torch.optim import RMSprop
+from utils import ACTIONS, get_state, is_solved
 
 
 class ADINet(nn.Module):
@@ -38,7 +39,10 @@ class ADINet(nn.Module):
         self.fc_value = nn.Linear(512, 512)
         self.value_head = nn.Linear(512, 1)
 
+        self.optimizer = RMSprop(self.parameters())
+
     def forward(self, x):
+        assert type(x) == torch.Tensor, "Input must be a tensor"
         x = x.view(-1, 20 * 24)  # flatten input
 
         for layer in self.shared_layers:
@@ -54,8 +58,11 @@ class ADINet(nn.Module):
 
         return value, policy
 
+    def save(self, path):
+        torch.save(self, path)
 
-def train(k=5, l=100):
+
+def train(k=5, l=100, path="./model.pth"):
     """
     Generate training samples by starting with a solved cube,
     scrambled k times (gives a sequence of k cubes)
@@ -70,6 +77,8 @@ def train(k=5, l=100):
     # Generate training samples
     X = []
     x_steps = []
+    Y_policy = []
+    Y_value = []
     for _ in range(l):
         steps = np.random.choice(ACTIONS, k, replace=True)
         x_steps.append(steps)
@@ -77,34 +86,43 @@ def train(k=5, l=100):
         # each scramble gives k cubes
         # D(xi) = idx+1
         xis = []
+        yvs = []
+        yps = []
         cube = pc.Cube()
         for step in steps:
             cube(str(step))
             xis.append(cube.copy())
 
-        X.append(xis)
+            yv = float("-inf")
+            yp = -1
+            # depth-1 BFS
+            for aidx, a in enumerate(ACTIONS):
+                _cube = cube.copy()
+                _cube(a)
+                vi, pi = adinet(get_state(_cube))
+                vi += 1 if is_solved(_cube) else -1
+                if vi > yv:
+                    yv = vi
+                    yp = aidx # argmax_a(R + vi)
+            yvs.append(yv)
+            yps.append(yp)
 
-    print(list(zip(x_steps, X)))
-    print(len(sum(X, [])))
-    # print(x_steps)
+        X.append(xis)
+        Y_value.append(yvs)
+        Y_policy.append(yps)
+
+    # print(list(zip(x_steps, X)))
+    # print(list(zip(Y_value, Y_policy)))
+    print(list(x_steps))
+    # print((X[0],))
+    print([[yv.data for yv in yvs] for yvs in Y_value])
+    print([[ACTIONS[i] for i in yps] for yps in Y_policy])
 
     for x in X:
         for i, xi in enumerate(x):
             Dxi = i + 1
-            yv = 0
-            yp = ""
-
-            for aidx, a in enumerate(ACTIONS):
-                cube = xi.copy()
-                cube(a)
-                vi, pi = adinet(get_state(cube))
-                vi += 1 if cube.is_solved() else -1
-                if vi > yv:
-                    yv = vi
-                    yp = aidx # argmax_a(R + vi)
 
     #     for each training sample:
-    #         Perform a depth-1 breadth-first search (BFS)
     #         for each child state in BFS:
     #             Evaluate and store its value
     #         Determine the value target as the maximum value among child states
@@ -112,26 +130,11 @@ def train(k=5, l=100):
     #     Train the neural network using RMSProp optimizer
     #     Loss function = Mean squared error (for value) + Softmax cross-entropy (for policy)
     # return trained neural network
-    pass
+    return adinet
 
 
-def solve():
-    """
-Initialize MCTS tree with initial_state as root
-while solution not found and within computational limits:
-    current_state = root of the MCTS tree
-    while current_state is not terminal:
-        if current_state is not fully expanded:
-            Expand current_state by adding one or more child states
-        Use trained_network to evaluate child states
-        Select next state using tree policy (balance exploration and exploitation)
-        current_state = next state
-    Backpropagate the result (win/loss) up the tree
-return solution path from root to terminal state
-"""
-    pass
 
 
 if __name__ == "__main__":
     # adinet = ADINet()
-    train(k=3, l=3)
+    train(k=2, l=3)

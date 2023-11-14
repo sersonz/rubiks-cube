@@ -1,5 +1,6 @@
 import numpy as np
 import pycuber as pc
+import torch
 
 CORNERS = [
     {"white", "orange", "blue"},
@@ -73,7 +74,7 @@ def get_state(cube):
                  EDGES.index(set(map(lambda key: edge.facings[key].colour, cubes))) +
                  EDGE_COLORS[edge.facings[cubes[0]].colour]] = 1
         i += 1
-    return state
+    return torch.Tensor(state)
 
 
 solved_cube = pc.Cube()
