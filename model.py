@@ -62,18 +62,7 @@ class ADINet(nn.Module):
         torch.save(self, path)
 
 
-def train(k=5, l=100, path="./model.pth"):
-    """
-    Generate training samples by starting with a solved cube,
-    scrambled k times (gives a sequence of k cubes)
-    repeated l times for N=k*l training samples
-    """
-
-    print("Training")
-    print(f"{k=}, {l=} -> N={k*l}")
-
-    adinet = ADINet()
-
+def gen_data(adinet, k=5, l=100):
     # Generate training samples
     X = []
     x_steps = []
@@ -103,7 +92,7 @@ def train(k=5, l=100, path="./model.pth"):
                 vi += 1 if is_solved(_cube) else -1
                 if vi > yv:
                     yv = vi
-                    yp = aidx # argmax_a(R + vi)
+                    yp = aidx  # argmax_a(R + vi)
             yvs.append(yv)
             yps.append(yp)
 
@@ -118,21 +107,27 @@ def train(k=5, l=100, path="./model.pth"):
     print([[yv.data for yv in yvs] for yvs in Y_value])
     print([[ACTIONS[i] for i in yps] for yps in Y_policy])
 
-    for x in X:
-        for i, xi in enumerate(x):
-            Dxi = i + 1
+    return X, Y_value, Y_policy
 
-    #     for each training sample:
-    #         for each child state in BFS:
-    #             Evaluate and store its value
-    #         Determine the value target as the maximum value among child states
-    #         Determine the policy target as the action leading to the maximum value
-    #     Train the neural network using RMSProp optimizer
-    #     Loss function = Mean squared error (for value) + Softmax cross-entropy (for policy)
-    # return trained neural network
+
+def train(k=5, l=100, epochs=10, path="./model.pth"):
+    """
+    Generate training samples by starting with a solved cube,
+    scrambled k times (gives a sequence of k cubes)
+    repeated l times for N=k*l training samples
+    """
+
+    print("Training")
+    print(f"{k=}, {l=} -> N={k*l}")
+
+    adinet = ADINet()
+
+    for epoch in range(epochs):
+        X, Y_value, Y_policy = gen_data(adinet, k, l)
+
+        # loss = Mean squared error (for value) + Softmax cross-entropy (for policy)
+
     return adinet
-
-
 
 
 if __name__ == "__main__":

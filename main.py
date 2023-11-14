@@ -36,7 +36,7 @@ args = parser.parse_args()
 # Init + train ADINet
 
 if args.train:
-    adinet = train(args.k, args.l, path=args.model)
+    adinet = train(args.k, args.l, epochs=10, path=args.model)
     adinet.save(args.model)
 
 adinet = torch.load(args.model)
