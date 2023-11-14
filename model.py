@@ -5,6 +5,7 @@ import pycuber as pc
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from utils import ACTIONS, get_state
 
 
 class ADINet(nn.Module):
@@ -53,6 +54,8 @@ class ADINet(nn.Module):
 
         return value, policy
 
+
+
 def train(k=5, l=100):
     """
     Generate training samples by starting with a solved cube,
@@ -60,19 +63,43 @@ def train(k=5, l=100):
     repeated l times for N=k*l training samples
     """
 
-    print(f"{k=}, {l=}, N={k*l}")
+    print("Training")
+    print(f"{k=}, {l=} -> N={k*l}")
 
-    print("Training...")
-    # Initialize neural network with random weights
-    print("initializing ADI network with random weights...")
     adinet = ADINet()
 
+    # Generate training samples
+    X = []
+    x_steps = []
+    for _ in range(l):
+        steps = np.random.choice(ACTIONS, k, replace=True)
+        x_steps.append(steps)
+
+        # each scramble gives k cubes
+        # D(xi) = idx+1
+        xis = []
+        cube = pc.Cube()
+        for step in steps:
+            cube(str(step))
+            xis.append(cube.copy())
+
+        X.append(xis)
+
+    print(list(zip(x_steps, X)))
+    print(len(sum(X, [])))
+    # print(x_steps)
+
+    for x in X:
+        for i, xi in enumerate(x):
+            Dxi = i + 1
+            yv = 0
+            yp = ""
+
+            for ai,a in enumerate(ACTIONS):
 
 
-    # for each iteration:
-    #     Generate training samples:
-    #         Start from the solved Rubik’s Cube state
-    #         Apply a series of random moves
+
+
     #     for each training sample:
     #         Perform a depth-1 breadth-first search (BFS)
     #         for each child state in BFS:
@@ -83,6 +110,7 @@ def train(k=5, l=100):
     #     Loss function = Mean squared error (for value) + Softmax cross-entropy (for policy)
     # return trained neural network
     pass
+
 
 def solve():
     """
@@ -102,4 +130,5 @@ return solution path from root to terminal state
 
 
 if __name__ == "__main__":
-    adinet = ADINet()
+    # adinet = ADINet()
+    train(k=3, l=3)
