@@ -55,7 +55,6 @@ class ADINet(nn.Module):
         return value, policy
 
 
-
 def train(k=5, l=100):
     """
     Generate training samples by starting with a solved cube,
@@ -95,10 +94,16 @@ def train(k=5, l=100):
             yv = 0
             yp = ""
 
-            for ai,a in enumerate(ACTIONS):
-
-
-
+            for a in ACTIONS:
+                cube = xi.copy()
+                cube(a)
+                vi, pi = adinet(get_state(cube))
+                # add R (-1 if not goal, else 1)
+                if vi > yv:
+                    yv = vi
+                    # is this right?
+                    # ypi = argmax_a(vi) so should be an idx right?
+                    yp = a
 
     #     for each training sample:
     #         Perform a depth-1 breadth-first search (BFS)
