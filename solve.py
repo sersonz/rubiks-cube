@@ -56,8 +56,6 @@ class Node:
 
        
 
-
-
 def solve():
     """
 Initialize MCTS tree with initial_state as root
