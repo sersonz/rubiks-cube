@@ -1,11 +1,13 @@
 """Monte Carlo Tree Search Solver"""
 from utils import ACTIONS
+import time
 
 class Node:
     #constants
     #c
    
     c=1
+
     def __init__(self,cube,model,actionInd,parent=None):
         self.cube = cube
         self.parent = parent
@@ -16,7 +18,7 @@ class Node:
         self.w,self.p = model.estimate(cube)
         self.n=[0]*len(ACTIONS)
 
-        self.l= None
+        self.l= None  #loss component for parallel thing
 
 
     def update(self,w,ind):
@@ -28,33 +30,30 @@ class Node:
 
     def simulate(self):
 
+        if isSolved(self.cube):
+            return [self.cube]
+
         if self.isLeaf:
             self.isLeaf = False
             self.children = {  val:Node(cube.copy()(val), model, ind)
                                    for ind,val in enumerate(ACTIONS) }
-            self.update(self.w, self.actionInd) # back +it should contain L
-            return
+
+            if self.parent:
+                self.parent.update(self.w,self.actionInd)     #back +it should contain L
+            return []
         
         choice=0
         value=0
 
         for ind,val in enumerate(ACTIONS):
-            new_value= self.children[val].w + c *sum(slef.n)**0.5 / (1+self.n[ind])
+            new_value= self.children[val].w + c * sum(self.n)**0.5 / (1+self.n[ind])
             if new_value > value:
                 value = new_value
                 choice = ind
 
-        self.children[choice].simulate()
-
-
-            
-
-
-
-
-
-
-       
+        res = self.children[choice].simulate()
+        return ([cube] + res) if res else []
+      
 
 def solve():
     """
@@ -70,4 +69,13 @@ while solution not found and within computational limits:
     Backpropagate the result (win/loss) up the tree
 return solution path from root to terminal state
 """
-    pass
+  
+    endTime = time.time() + timeLimit
+    root = Node(cube, model ,0)
+
+    while time.time()< endTime:
+          res = root.simulate()
+
+          if res:
+              return res
+          
