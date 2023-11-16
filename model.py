@@ -5,9 +5,11 @@ import pycuber as pc
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import RMSprop
 from utils import ACTIONS, get_state, is_solved
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ADINet(nn.Module):
     """Architecture for fθ:
@@ -41,6 +43,8 @@ class ADINet(nn.Module):
 
         self.optimizer = RMSprop(self.parameters())
 
+        self.to(device)
+
     def forward(self, x):
         assert type(x) == torch.Tensor, "Input must be a tensor"
         x = x.view(-1, 20 * 24)  # flatten input
@@ -57,9 +61,6 @@ class ADINet(nn.Module):
         policy = F.softmax(policy, dim=1)  # prob dist
 
         return value, policy
-
-    def save(self, path):
-        torch.save(self, path)
 
 
 def gen_data(adinet, k=5, l=100):
@@ -110,26 +111,54 @@ def gen_data(adinet, k=5, l=100):
     return X, Y_value, Y_policy
 
 
-def train(k=5, l=100, epochs=10, path="./model.pth"):
+def train(k=5, l=100, epochs=10, path="./model.pth", batch_size=32):
     """
     Generate training samples by starting with a solved cube,
     scrambled k times (gives a sequence of k cubes)
     repeated l times for N=k*l training samples
     """
-
     print("Training")
     print(f"{k=}, {l=} -> N={k*l}")
 
     adinet = ADINet()
 
+    # Loss functions
+    criterion_value = nn.MSELoss()
+    criterion_policy = nn.CrossEntropyLoss()
+
     for epoch in range(epochs):
         X, Y_value, Y_policy = gen_data(adinet, k, l)
 
-        # loss = Mean squared error (for value) + Softmax cross-entropy (for policy)
+        # Convert to tensors and create dataset
+        X_tensor = torch.tensor(X, dtype=torch.float32).to(device)
+        Y_value_tensor = torch.tensor(Y_value, dtype=torch.float32).to(device)
+        Y_policy_tensor = torch.tensor(Y_policy, dtype=torch.long).to(device)
+
+        dataset = TensorDataset(X_tensor, Y_value_tensor, Y_policy_tensor)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+        for batch in dataloader:
+            x_batch, yv_batch, yp_batch = batch
+
+            # Forward pass
+            values, policies = adinet(x_batch)
+
+            # Calculate loss
+            loss_value = criterion_value(values, yv_batch)
+            loss_policy = criterion_policy(policies, yp_batch)
+            loss = loss_value + loss_policy
+
+            # Backpropagation
+            adinet.optimizer.zero_grad()
+            loss.backward()
+            adinet.optimizer.step()
+
+        # Optional: Print epoch information, save model, etc.
+
+    # Save the final model
+    torch.save(adinet.state_dict(), path)
 
     return adinet
 
-
 if __name__ == "__main__":
-    # adinet = ADINet()
-    train(k=2, l=3)
+    train(k=2, l=3, batch_size=32)
