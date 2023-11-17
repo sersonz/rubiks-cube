@@ -81,7 +81,8 @@ def gen_data(adinet, k=5, l=100):
         cube = pc.Cube()
         for step in steps:
             cube(str(step))
-            xis.append(cube.copy())
+            # xis.append(cube.copy())
+            xis.append(get_state(cube))
 
             yv = float("-inf")
             yp = -1
@@ -108,7 +109,8 @@ def gen_data(adinet, k=5, l=100):
     print([[yv.data for yv in yvs] for yvs in Y_value])
     print([[ACTIONS[i] for i in yps] for yps in Y_policy])
 
-    return X, Y_value, Y_policy
+    # return X, Y_value, Y_policy
+    return sum(X, []), sum(Y_value, []), sum(Y_policy, [])
 
 
 def train(k=5, l=100, epochs=10, path="./model.pth", batch_size=32):
@@ -128,6 +130,8 @@ def train(k=5, l=100, epochs=10, path="./model.pth", batch_size=32):
 
     for epoch in range(epochs):
         X, Y_value, Y_policy = gen_data(adinet, k, l)
+        print(type(X))
+        print(type(X[0]))
 
         # Convert to tensors and create dataset
         X_tensor = torch.tensor(X, dtype=torch.float32).to(device)
@@ -153,7 +157,7 @@ def train(k=5, l=100, epochs=10, path="./model.pth", batch_size=32):
             loss.backward()
             adinet.optimizer.step()
 
-        # Optional: Print epoch information, save model, etc.
+        print(f"Epoch {epoch+1}/{epochs}: {loss.item()}")  # type: ignore
 
     # Save the final model
     torch.save(adinet.state_dict(), path)
