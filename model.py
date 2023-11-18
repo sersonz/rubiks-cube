@@ -140,10 +140,15 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
     optimizer = RMSprop(adinet.parameters(), lr=lr)
 
     if REUSE_DATA and os.path.exists("X.pt"):
-        print("Loading data from file (change REUSE_DATA in script to generate new data instead)")
+        print("Loading data from file")
+        print("change REUSE_DATA in script to generate new data instead")
         X = torch.load("X.pt")
         Y_value = torch.load("Y_value.pt")
         Y_policy = torch.load("Y_policy.pt")
+
+        if (X.shape[0] != k*l):
+            raise ValueError(f"Loaded data shape does not match params in script (k and l). Loaded {X.shape[0]} samples, expected k*l={k}*{l}={k*l} samples.")
+
     else:
         X, Y_value, Y_policy = gen_data(adinet, k, l)
 
