@@ -11,7 +11,7 @@ from utils import ACTIONS, get_state, is_solved
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-REUSE_DATA = False
+# REUSE_DATA = False
 
 class ADINet(nn.Module):
     """Architecture for fθ:
@@ -108,11 +108,11 @@ def gen_data(adinet, k=5, l=100):
                 (Y_policy, torch.tensor(yps, dtype=torch.long, device=device)), 0
             )
 
-    if REUSE_DATA:
-        print("Saving data")
-        torch.save(X, "X.pt")
-        torch.save(Y_value, "Y_value.pt")
-        torch.save(Y_policy, "Y_policy.pt")
+    # if REUSE_DATA:
+    #     print("Saving data")
+    #     torch.save(X, "X.pt")
+    #     torch.save(Y_value, "Y_value.pt")
+    #     torch.save(Y_policy, "Y_policy.pt")
 
     return X, Y_value, Y_policy
 
@@ -142,23 +142,27 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
 
     optimizer = RMSprop(adinet.parameters(), lr=lr)
 
-    if REUSE_DATA and os.path.exists("X.pt"):
-        print("Loading data from file")
-        print("set REUSE_DATA=False in script or delete X.pt to generate new data instead")
-        X = torch.load("X.pt")
-        Y_value = torch.load("Y_value.pt")
-        Y_policy = torch.load("Y_policy.pt")
+    # if REUSE_DATA and os.path.exists("X.pt"):
+    #     print("Loading data from file")
+    #     print("set REUSE_DATA=False in script or delete X.pt to generate new data instead")
+    #     X = torch.load("X.pt")
+    #     Y_value = torch.load("Y_value.pt")
+    #     Y_policy = torch.load("Y_policy.pt")
 
-        if (X.shape[0] != k*l):
-            raise ValueError(f"Loaded data shape does not match params in script (k and l). Loaded {X.shape[0]} samples, expected k*l={k}*{l}={k*l} samples.")
+    #     if (X.shape[0] != k*l):
+    #         raise ValueError(f"Loaded data shape does not match params in script (k and l). Loaded {X.shape[0]} samples, expected k*l={k}*{l}={k*l} samples.")
 
-    else:
-        X, Y_value, Y_policy = gen_data(adinet, k, l)
+    # else:
+    #     X, Y_value, Y_policy = gen_data(adinet, k, l)
 
-    dataset = TensorDataset(X, Y_value, Y_policy, weights)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    # dataset = TensorDataset(X, Y_value, Y_policy, weights)
+    # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     for epoch in range(epochs):
+        X, Y_value, Y_policy = gen_data(adinet, k, l)
+        dataset = TensorDataset(X, Y_value, Y_policy, weights)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        
         with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
             for batch in pbar:
                 x_batch, yv_batch, yp_batch, w_batch = batch
