@@ -196,5 +196,5 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
 
 
 if __name__ == "__main__":
-    REUSE_DATA = True
+    # REUSE_DATA = True
     train(k=5, l=100, batch_size=8, lr=1e-5, epochs=100)
