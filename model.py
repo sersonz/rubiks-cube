@@ -116,6 +116,9 @@ def gen_data(adinet, k=5, l=100):
 
     return X, Y_value, Y_policy
 
+def initialize_weights(layer):
+    if isinstance(layer, nn.Linear):
+        nn.init.xavier_uniform(layer.weight, gain=nn.init.calculate_gain('elu'))
 
 def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
     """
@@ -127,6 +130,7 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
     print(f"{k=}, {l=} -> N={k*l}")
 
     adinet = ADINet()
+    adinet.apply(initialize_weights)
 
     # Loss functions
     value_criterion = nn.MSELoss(reduction="none")
