@@ -118,7 +118,7 @@ def gen_data(adinet, k=5, l=100):
 
 def initialize_weights(layer):
     if isinstance(layer, nn.Linear):
-        nn.init.xavier_uniform(layer.weight, gain=nn.init.calculate_gain('elu'))
+        nn.init.xavier_uniform_(layer.weight)
 
 def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
     """
