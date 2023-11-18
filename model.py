@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pycuber as pc
 from tqdm import tqdm
@@ -10,6 +11,7 @@ from utils import ACTIONS, get_state, is_solved
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+REUSE_DATA = True
 
 class ADINet(nn.Module):
     """Architecture for fθ:
@@ -107,6 +109,12 @@ def gen_data(adinet, k=5, l=100):
                 (Y_policy, torch.tensor(yps, dtype=torch.long, device=device)), 0
             )
 
+    if REUSE_DATA:
+        print("Saving data")
+        torch.save(X, "X.pt")
+        torch.save(Y_value, "Y_value.pt")
+        torch.save(Y_policy, "Y_policy.pt")
+
     return X, Y_value, Y_policy
 
 
@@ -130,7 +138,15 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
     weights = torch.reciprocal(D_xi)
 
     optimizer = RMSprop(adinet.parameters(), lr=lr)
-    X, Y_value, Y_policy = gen_data(adinet, k, l)
+
+    if REUSE_DATA and os.path.exists("X.pt"):
+        print("Loading data from file (change REUSE_DATA in script to generate new data instead)")
+        X = torch.load("X.pt")
+        Y_value = torch.load("Y_value.pt")
+        Y_policy = torch.load("Y_policy.pt")
+    else:
+        X, Y_value, Y_policy = gen_data(adinet, k, l)
+
     dataset = TensorDataset(X, Y_value, Y_policy, weights)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
@@ -168,4 +184,4 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
 
 
 if __name__ == "__main__":
-    train(k=10, l=100, batch_size=8, epochs=10)
+    train(k=5, l=100, batch_size=8, lr=1e-5, epochs=100)
