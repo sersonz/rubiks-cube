@@ -34,13 +34,12 @@ class ADINet(nn.Module):
         self.shared_layers = nn.ModuleList([
             nn.Linear(20 * 24, 4096),
             nn.Linear(4096, 2048),
-            nn.Linear(2048, 512),
         ])
 
-        self.fc_policy = nn.Linear(512, 512)
+        self.fc_policy = nn.Linear(2048, 512)
         self.policy_head = nn.Linear(512, 12)
 
-        self.fc_value = nn.Linear(512, 512)
+        self.fc_value = nn.Linear(2048, 512)
         self.value_head = nn.Linear(512, 1)
 
         self.to(device)
@@ -54,7 +53,7 @@ class ADINet(nn.Module):
 
         value = F.elu(self.fc_value(x))
         value = self.value_head(value)
-        value = torch.tanh(value)  # [-1, 1]
+        #value = torch.tanh(value)  # [-1, 1]
 
         policy = F.elu(self.fc_policy(x))
         policy = self.policy_head(policy)
