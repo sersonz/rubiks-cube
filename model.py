@@ -11,7 +11,7 @@ from utils import ACTIONS, get_state, is_solved
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-REUSE_DATA = True
+REUSE_DATA = False
 
 class ADINet(nn.Module):
     """Architecture for fθ:
@@ -141,7 +141,7 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
 
     if REUSE_DATA and os.path.exists("X.pt"):
         print("Loading data from file")
-        print("change REUSE_DATA in script to generate new data instead")
+        print("set REUSE_DATA=False in script or delete X.pt to generate new data instead")
         X = torch.load("X.pt")
         Y_value = torch.load("Y_value.pt")
         Y_policy = torch.load("Y_policy.pt")
@@ -189,4 +189,5 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
 
 
 if __name__ == "__main__":
+    REUSE_DATA = True
     train(k=5, l=100, batch_size=8, lr=1e-5, epochs=100)
