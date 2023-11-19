@@ -40,13 +40,11 @@ class ADINet(nn.Module):
         self.value_layer = nn.Linear(2048, 512)
         self.value_head = nn.Linear(512, 1)
 
-        # self.apply(initialize_weights)
         self.init_weights()
         self.to(device)
 
-
     def init_weights(self):
-       for m in self.modules():
+        for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
@@ -120,8 +118,6 @@ def gen_data(adinet, k=5, l=100):
     return X, Y_value, Y_policy
 
 
-
-
 def train(
     k=5,
     l=100,
@@ -129,7 +125,8 @@ def train(
     epochs=10,
     iterations=100,
     lr=3e-4,
-    path="./model.pth"
+    path="./model.pth",
+    load=False,
 ):
     """
     Generate training samples by starting with a solved cube,
@@ -139,7 +136,9 @@ def train(
     print("Training")
     print(f"{k=}, {l=} -> N={k*l}")
 
-    adinet = ADINet()
+    subpath = path[:path.rfind(".pth")]
+    print(path)
+    print(subpath)
 
     # Loss functions
     value_criterion = nn.MSELoss(reduction="none")
@@ -147,32 +146,43 @@ def train(
 
     D_xi = torch.cat([torch.arange(1, k + 1)
                       for _ in range(l)]).type(torch.float32).to(device)
-    weights = torch.reciprocal(D_xi)
+    loss_weights = torch.reciprocal(D_xi)
 
-    optimizer = RMSprop(adinet.parameters(), lr=lr)
+    model = ADINet()
+    optimizer = RMSprop(model.parameters(), lr=lr)
+    if load:
+        checkpoint = torch.load(path)
+        model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        iter = checkpoint["iter"]
+        hist = checkpoint["hist"]
+    else:
+        iter = 0
+        hist = []
+    model.train()
 
-    for i in range(iterations):
-        print(f"\nIteration {i+1}/{iterations}")
+    for i in range(iter, iter + iterations):
+        print(f"\nIteration {i+1}/{iter + iterations}")
 
-        X, Y_value, Y_policy = gen_data(adinet, k, l)
-        dataset = TensorDataset(X, Y_value, Y_policy, weights)
+        X, Y_value, Y_policy = gen_data(model, k, l)
+        dataset = TensorDataset(X, Y_value, Y_policy, loss_weights)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
         for epoch in range(epochs):
             with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
                 for batch in pbar:
-                    x, y_values, y_policies, loss_weights = batch
+                    x, y_values, y_policies, batch_loss_weights = batch
 
                     # Forward pass
-                    pred_values, pred_policies = adinet(x)
+                    pred_values, pred_policies = model(x)
                     pred_values = pred_values.squeeze(1)
 
                     # Calculate loss
                     loss_value = value_criterion(pred_values, y_values)
-                    loss_value = (loss_value * loss_weights).mean()
+                    loss_value = (loss_value * batch_loss_weights).mean()
 
                     loss_policy = policy_criterion(pred_policies, y_policies)
-                    loss_policy = (loss_policy * loss_weights).mean()
+                    loss_policy = (loss_policy * batch_loss_weights).mean()
 
                     loss = loss_value + loss_policy
 
@@ -181,13 +191,35 @@ def train(
                     loss.backward()
                     optimizer.step()
 
+                    hist.append(loss.item())
                     pbar.set_postfix(loss=loss.item())
 
-    # Save the final model
-    torch.save(adinet.state_dict(), path)
+        torch.save({
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "iter": i + 1,
+            "hist": hist,
+        }, f"{subpath}_{i}.pth")
 
-    return adinet
+    # Save the final model
+    torch.save({
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "iter": iter + iterations,
+        "hist": hist,
+    }, path)
+
+    return model
 
 
 if __name__ == "__main__":
-    train(k=10, l=10, batch_size=8, epochs=10, iterations=100, lr=3e-4)
+    train(
+        k=10,
+        l=10,
+        batch_size=8,
+        epochs=10,
+        iterations=5,
+        lr=3e-4,
+        path="models/model.pth",
+        load=True
+    )
