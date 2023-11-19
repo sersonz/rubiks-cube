@@ -10,6 +10,7 @@ from utils import ACTIONS, get_state, is_solved
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 class ADINet(nn.Module):
     """Architecture for fθ:
             20x24
@@ -31,12 +32,25 @@ class ADINet(nn.Module):
         self.shared_layers = nn.ModuleList([
             nn.Linear(20 * 24, 4096),
             nn.Linear(4096, 2048),
-            nn.Linear(2048, 512),
         ])
+
+        self.policy_layer = nn.Linear(2048, 512)
         self.policy_head = nn.Linear(512, 12)
+
+        self.value_layer = nn.Linear(2048, 512)
         self.value_head = nn.Linear(512, 1)
 
+        # self.apply(initialize_weights)
+        self.init_weights()
         self.to(device)
+
+
+    def init_weights(self):
+       for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
     def forward(self, x):
         assert type(x) == torch.Tensor, "Input must be a tensor"
@@ -45,10 +59,8 @@ class ADINet(nn.Module):
         for layer in self.shared_layers:
             x = F.elu(layer(x))
 
-        value = self.value_head(x)
-
-        policy = self.policy_head(x)
-        # policy = F.softmax(policy, dim=1)  # prob dist
+        value = self.value_head(F.elu(self.value_layer(x)))
+        policy = self.policy_head(F.elu(self.policy_layer(x)))
 
         return value, policy
 
@@ -91,18 +103,23 @@ def gen_data(adinet, k=5, l=100):
 
             X = torch.cat((X, torch.cat(xis)), 0)
             Y_value = torch.cat(
-                (Y_value, torch.tensor(yvs, dtype=torch.float32, device=device)), 0
+                (
+                    Y_value,
+                    torch.tensor(yvs, dtype=torch.float32, device=device),
+                ),
+                0,
             )
             Y_policy = torch.cat(
-                (Y_policy, torch.tensor(yps, dtype=torch.long, device=device)), 0
+                (
+                    Y_policy,
+                    torch.tensor(yps, dtype=torch.long, device=device),
+                ),
+                0,
             )
 
     return X, Y_value, Y_policy
 
 
-def initialize_weights(layer):
-    if isinstance(layer, nn.Linear):
-        nn.init.xavier_uniform_(layer.weight)
 
 
 def train(
@@ -123,7 +140,6 @@ def train(
     print(f"{k=}, {l=} -> N={k*l}")
 
     adinet = ADINet()
-    adinet.apply(initialize_weights)
 
     # Loss functions
     value_criterion = nn.MSELoss(reduction="none")
