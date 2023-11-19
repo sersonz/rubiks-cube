@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import pycuber as pc
 from tqdm import tqdm
@@ -10,8 +9,6 @@ from torch.optim import RMSprop
 from utils import ACTIONS, get_state, is_solved
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# REUSE_DATA = False
 
 class ADINet(nn.Module):
     """Architecture for fθ:
@@ -34,12 +31,9 @@ class ADINet(nn.Module):
         self.shared_layers = nn.ModuleList([
             nn.Linear(20 * 24, 4096),
             nn.Linear(4096, 2048),
+            nn.Linear(2048, 512),
         ])
-
-        self.fc_policy = nn.Linear(2048, 512)
         self.policy_head = nn.Linear(512, 12)
-
-        self.fc_value = nn.Linear(2048, 512)
         self.value_head = nn.Linear(512, 1)
 
         self.to(device)
@@ -51,13 +45,10 @@ class ADINet(nn.Module):
         for layer in self.shared_layers:
             x = F.elu(layer(x))
 
-        value = F.elu(self.fc_value(x))
-        value = self.value_head(value)
-        #value = torch.tanh(value)  # [-1, 1]
+        value = self.value_head(x)
 
-        policy = F.elu(self.fc_policy(x))
-        policy = self.policy_head(policy)
-        policy = F.softmax(policy, dim=1)  # prob dist
+        policy = self.policy_head(x)
+        # policy = F.softmax(policy, dim=1)  # prob dist
 
         return value, policy
 
@@ -72,8 +63,6 @@ def gen_data(adinet, k=5, l=100):
         for _ in range(l):
             steps = np.random.choice(ACTIONS, k, replace=True)
 
-            # each scramble gives k cubes
-            # D(xi) = idx+1
             xis = []
             yvs = []
             yps = []
@@ -108,19 +97,23 @@ def gen_data(adinet, k=5, l=100):
                 (Y_policy, torch.tensor(yps, dtype=torch.long, device=device)), 0
             )
 
-    # if REUSE_DATA:
-    #     print("Saving data")
-    #     torch.save(X, "X.pt")
-    #     torch.save(Y_value, "Y_value.pt")
-    #     torch.save(Y_policy, "Y_policy.pt")
-
     return X, Y_value, Y_policy
+
 
 def initialize_weights(layer):
     if isinstance(layer, nn.Linear):
         nn.init.xavier_uniform_(layer.weight)
 
-def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, iterations=100, path="./model.pth"):
+
+def train(
+    k=5,
+    l=100,
+    batch_size=32,
+    epochs=10,
+    iterations=100,
+    lr=3e-4,
+    path="./model.pth"
+):
     """
     Generate training samples by starting with a solved cube,
     scrambled k times (gives a sequence of k cubes)
@@ -142,55 +135,37 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, iterations=100, path=".
 
     optimizer = RMSprop(adinet.parameters(), lr=lr)
 
-    # if REUSE_DATA and os.path.exists("X.pt"):
-    #     print("Loading data from file")
-    #     print("set REUSE_DATA=False in script or delete X.pt to generate new data instead")
-    #     X = torch.load("X.pt")
-    #     Y_value = torch.load("Y_value.pt")
-    #     Y_policy = torch.load("Y_policy.pt")
-
-    #     if (X.shape[0] != k*l):
-    #         raise ValueError(f"Loaded data shape does not match params in script (k and l). Loaded {X.shape[0]} samples, expected k*l={k}*{l}={k*l} samples.")
-
-    # else:
-    #     X, Y_value, Y_policy = gen_data(adinet, k, l)
-
-    # dataset = TensorDataset(X, Y_value, Y_policy, weights)
-    # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
     for i in range(iterations):
-        print(f"iteration {i+1}/{iterations}")
-        
+        print(f"\nIteration {i+1}/{iterations}")
+
         X, Y_value, Y_policy = gen_data(adinet, k, l)
         dataset = TensorDataset(X, Y_value, Y_policy, weights)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        
-        for epoch in range(epochs):        
+
+        for epoch in range(epochs):
             with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
                 for batch in pbar:
-                    x_batch, yv_batch, yp_batch, w_batch = batch
-    
+                    x, y_values, y_policies, loss_weights = batch
+
                     # Forward pass
-                    values, policies = adinet(x_batch)
-                    values = values.squeeze(1)
-    
+                    pred_values, pred_policies = adinet(x)
+                    pred_values = pred_values.squeeze(1)
+
                     # Calculate loss
-                    loss_value = value_criterion(values, yv_batch)
-                    loss_value = (loss_value * w_batch).mean()
-    
-                    loss_policy = policy_criterion(policies, yp_batch)
-                    loss_policy = (loss_policy * w_batch).mean()
-    
+                    loss_value = value_criterion(pred_values, y_values)
+                    loss_value = (loss_value * loss_weights).mean()
+
+                    loss_policy = policy_criterion(pred_policies, y_policies)
+                    loss_policy = (loss_policy * loss_weights).mean()
+
                     loss = loss_value + loss_policy
-    
+
                     # Backpropagation
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-    
+
                     pbar.set_postfix(loss=loss.item())
-    
-                # print(f"Epoch {epoch+1}/{epochs}: {loss.item()}")  # type: ignore
 
     # Save the final model
     torch.save(adinet.state_dict(), path)
@@ -199,5 +174,4 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, iterations=100, path=".
 
 
 if __name__ == "__main__":
-    # REUSE_DATA = True
-    train(k=5, l=100, batch_size=8, epochs=100, lr=1e-5, iterations=100)
+    train(k=10, l=10, batch_size=8, epochs=10, iterations=100, lr=3e-4)
