@@ -120,7 +120,7 @@ def initialize_weights(layer):
     if isinstance(layer, nn.Linear):
         nn.init.xavier_uniform_(layer.weight)
 
-def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
+def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, iterations=100, path="./model.pth"):
     """
     Generate training samples by starting with a solved cube,
     scrambled k times (gives a sequence of k cubes)
@@ -158,36 +158,39 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
     # dataset = TensorDataset(X, Y_value, Y_policy, weights)
     # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    for epoch in range(epochs):
+    for i in range(iterations):
+        print(f"iteration {i+1}/{iterations}")
+        
         X, Y_value, Y_policy = gen_data(adinet, k, l)
         dataset = TensorDataset(X, Y_value, Y_policy, weights)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         
-        with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
-            for batch in pbar:
-                x_batch, yv_batch, yp_batch, w_batch = batch
-
-                # Forward pass
-                values, policies = adinet(x_batch)
-                values = values.squeeze(1)
-
-                # Calculate loss
-                loss_value = value_criterion(values, yv_batch)
-                loss_value = (loss_value * w_batch).mean()
-
-                loss_policy = policy_criterion(policies, yp_batch)
-                loss_policy = (loss_policy * w_batch).mean()
-
-                loss = loss_value + loss_policy
-
-                # Backpropagation
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                pbar.set_postfix(loss=loss.item())
-
-            # print(f"Epoch {epoch+1}/{epochs}: {loss.item()}")  # type: ignore
+        for epoch in range(epochs):        
+            with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
+                for batch in pbar:
+                    x_batch, yv_batch, yp_batch, w_batch = batch
+    
+                    # Forward pass
+                    values, policies = adinet(x_batch)
+                    values = values.squeeze(1)
+    
+                    # Calculate loss
+                    loss_value = value_criterion(values, yv_batch)
+                    loss_value = (loss_value * w_batch).mean()
+    
+                    loss_policy = policy_criterion(policies, yp_batch)
+                    loss_policy = (loss_policy * w_batch).mean()
+    
+                    loss = loss_value + loss_policy
+    
+                    # Backpropagation
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+    
+                    pbar.set_postfix(loss=loss.item())
+    
+                # print(f"Epoch {epoch+1}/{epochs}: {loss.item()}")  # type: ignore
 
     # Save the final model
     torch.save(adinet.state_dict(), path)
@@ -197,4 +200,4 @@ def train(k=5, l=100, batch_size=32, epochs=10, lr=3e-4, path="./model.pth"):
 
 if __name__ == "__main__":
     # REUSE_DATA = True
-    train(k=5, l=100, batch_size=8, lr=1e-5, epochs=100)
+    train(k=5, l=100, batch_size=8, epochs=100, lr=1e-5, iterations=100)
