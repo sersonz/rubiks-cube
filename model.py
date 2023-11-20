@@ -213,13 +213,70 @@ def train(
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-k",
+        type=int,
+        required=True,
+        help="Number of random moves to apply to each cube when generating training samples",
+    )
+    parser.add_argument(
+        "-l",
+        type=int,
+        required=True,
+        help="Number of cubes to scramble when generating training samples",
+    )
+    parser.add_argument(
+        "-b",
+        "--batch_size",
+        type=int,
+        default=32,
+        help="Batch size",
+    )
+    parser.add_argument(
+        "-e",
+        "--epochs",
+        type=int,
+        default=10,
+        help="Number of epochs to train each iteration",
+    )
+    parser.add_argument(
+        "-i",
+        "--iterations",
+        type=int,
+        default=100,
+        help="Number of iterations to train",
+    )
+    parser.add_argument(
+        "-r",
+        "--lr",
+        type=float,
+        default=3e-4,
+        help="Learning rate",
+    )
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        default="./models/model.pth",
+        help="The path to save/load the ADINet",
+    )
+    parser.add_argument(
+        "--load",
+        action="store_true",
+        help="Load model path as a training checkpoint and continue training",
+    )
+    args = parser.parse_args()
+
     train(
-        k=10,
-        l=10,
-        batch_size=8,
-        epochs=10,
-        iterations=5,
-        lr=3e-4,
-        path="models/model.pth",
-        load=True
+        k=args.k,
+        l=args.l,
+        batch_size=args.batch_size,
+        epochs=args.epochs,
+        iterations=args.iterations,
+        lr=args.lr,
+        path=args.model,
+        load=args.load,
     )
