@@ -63,7 +63,7 @@ class ADINet(nn.Module):
         return value, policy
 
 
-def gen_data(adinet, k=5, l=100):
+def gen_data(adinet, k, l, modified_target=False):
     # Generate training samples
 
     X = torch.empty((0, 20 * 24), dtype=torch.float32, device=device)
@@ -91,7 +91,13 @@ def gen_data(adinet, k=5, l=100):
                     _cube(a)
                     state = get_state(_cube).to(device)
                     vi, pi = adinet(state)
-                    vi += 1 if is_solved(_cube) else -1
+                    if modified_target:
+                        if is_solved(_cube):
+                            vi = 0
+                        else:
+                            vi -= 1
+                    else:
+                        vi += 1 if is_solved(_cube) else -1
                     if vi > yv:
                         yv = vi
                         yp = aidx  # argmax_a(R + vi)
@@ -127,6 +133,7 @@ def train(
     lr=3e-4,
     path="./model.pth",
     load=False,
+    modified_target=False,
 ):
     """
     Generate training samples by starting with a solved cube,
@@ -162,7 +169,7 @@ def train(
     for i in range(iter, iter + iterations):
         print(f"\nIteration {i+1}/{iter + iterations}")
 
-        X, Y_value, Y_policy = gen_data(model, k, l)
+        X, Y_value, Y_policy = gen_data(model, k, l, modified_target)
         dataset = TensorDataset(X, Y_value, Y_policy, loss_weights)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
@@ -266,6 +273,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Load model path as a training checkpoint and continue training",
     )
+    parser.add_argument(
+        "--mod_target",
+        action="store_true",
+        help="Use modified method for target value calculation",
+    )
     args = parser.parse_args()
 
     train(
@@ -277,4 +289,5 @@ if __name__ == "__main__":
         lr=args.lr,
         path=args.model,
         load=args.load,
+        modified_target=args.mod_target,
     )
