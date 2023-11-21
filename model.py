@@ -26,7 +26,7 @@ class ADINet(nn.Module):
     Each layer is fully connected.
     Use elu activation on all layers except for the outputs.
     Combined value and policy network."""
-    def __init__(self):
+    def __init__(self, dropout=False):
         super(ADINet, self).__init__()
 
         self.shared_layers = nn.ModuleList([
@@ -39,6 +39,8 @@ class ADINet(nn.Module):
 
         self.value_layer = nn.Linear(2048, 512)
         self.value_head = nn.Linear(512, 1)
+
+        self.dropout = dropout
 
         self.init_weights()
         self.to(device)
@@ -56,6 +58,8 @@ class ADINet(nn.Module):
 
         for layer in self.shared_layers:
             x = F.elu(layer(x))
+            if self.dropout:
+                x = F.dropout(x, p=0.2, training=self.training)
 
         value = self.value_head(F.elu(self.value_layer(x)))
         policy = self.policy_head(F.elu(self.policy_layer(x)))
@@ -134,6 +138,7 @@ def train(
     path="./model.pth",
     load=False,
     modified_target=False,
+    dropout=False,
 ):
     """
     Generate training samples by starting with a solved cube,
@@ -153,7 +158,7 @@ def train(
                       for _ in range(l)]).type(torch.float32).to(device)
     loss_weights = torch.reciprocal(D_xi)
 
-    model = ADINet()
+    model = ADINet(dropout=dropout)
     optimizer = RMSprop(model.parameters(), lr=lr)
     if load:
         checkpoint = torch.load(path)
@@ -278,6 +283,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Use modified method for target value calculation",
     )
+    parser.add_argument(
+        "--dropout",
+        action="store_true",
+        help="Use dropout in model training",
+    )
     args = parser.parse_args()
 
     train(
@@ -290,4 +300,5 @@ if __name__ == "__main__":
         path=args.model,
         load=args.load,
         modified_target=args.mod_target,
+        dropout=args.dropout,
     )
