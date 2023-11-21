@@ -137,8 +137,6 @@ def train(
     print(f"{k=}, {l=} -> N={k*l}")
 
     subpath = path[:path.rfind(".pth")]
-    print(path)
-    print(subpath)
 
     # Loss functions
     value_criterion = nn.MSELoss(reduction="none")
