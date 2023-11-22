@@ -207,6 +207,7 @@ def train(
 
             avg_epoch_loss = epoch_loss / len(dataloader)
             hist.append(avg_epoch_loss)
+            pbar.set_postfix(loss=avg_epoch_loss)
 
         torch.save({
             "model": model.state_dict(),
@@ -221,7 +222,7 @@ def train(
         "optimizer": optimizer.state_dict(),
         "iter": iter + iterations,
         "hist": hist,
-    }, path)
+    }, f"{subpath}_FINAL.pth")
 
     return model
 
