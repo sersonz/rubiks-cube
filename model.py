@@ -180,7 +180,7 @@ def train(
 
         for epoch in range(epochs):
             with tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
-                loss = torch.tensor(0.0, device=device)
+                epoch_loss = 0.0
                 for batch in pbar:
                     x, y_values, y_policies, batch_loss_weights = batch
 
@@ -203,7 +203,10 @@ def train(
                     optimizer.step()
 
                     pbar.set_postfix(loss=loss.item())
-                hist.append(loss.item())
+                    epoch_loss += loss.item()
+
+            avg_epoch_loss = epoch_loss / len(dataloader)
+            hist.append(avg_epoch_loss)
 
         torch.save({
             "model": model.state_dict(),
