@@ -29,48 +29,62 @@ class Node:
 
         if self.parent:
             self.parent.update(w, ind)
+    
+    # DFS
+    def check_dfs(self):
+            
+        if is_solved(self.cube):
+            return [self.actionInd]
 
-    def check(self):
         if self.isLeaf:
-            if is_solved(self.cube):
-                return [self.actionInd]
-            else:
-                return []
+            return None   
         
-        smallest_solution = []
+        smallest_solution = None
         for ind,val in enumerate(ACTIONS):
             from_child = self.children[val].check()
-            if from_child and (not smallest_solution or len(smallest_solution) > len (from_child)):
-                smallest_solution = smallest_solution
-        if smallest_solution:
+            if from_child is not None:
+                if smallest_solution is None or len(from_child) < len(smallest_solution):
+                    smallest_solution = from_child
+        
+        if smallest_solution is not None:
             return [self.actionInd] + smallest_solution
-    
-    
+        return None            
+           
+    def add_one_more_layer(self):
 
-
+        if self.isLeaf:
+            self.isLeaf = False
+            self.children = {
+                                    val:Node(self.cube.copy()(val), self.model, ind, self)
+                                         for ind,val in enumerate(ACTIONS)
+                                }
+            return 
+        
+        for ind,val in enumerate(ACTIONS):
+            self.children[val].add_one_more_layer
+    
 
     def simulate(self):
 
         # backpropagate with naive solution if found
         if is_solved(self.cube):
             return [self.actionInd]
-
+        
         if self.isLeaf:
-            # develop the leaf
+            #develop the leaf
             self.isLeaf = False
-
-            # instantiate children leafs
-            #(it's done to avoid recalculating children value)
-
+            
+            #instantiate children leafs
             self.children = {
                                     val:Node(self.cube.copy()(val), self.model, ind, self)
                                          for ind,val in enumerate(ACTIONS)
                                 }
+        
             if self.parent:
-                self.parent.update(self.w, self.actionInd) # back + it should contain L
+                 self.parent.update(self.w,self.actionInd) 
 
             return []
-
+    
         choice = ACTIONS[0]
         value = -2
 
@@ -112,7 +126,9 @@ return solution path from root to terminal state
 
         if res:
             return res, root
-        
+
+from collections import deque
+
 def solve(cube, model, timeLimit):
     
     """
@@ -127,7 +143,28 @@ def solve(cube, model, timeLimit):
         res = root.simulate()
 
         if res:
-            return res
+            
+            #moves all leaves to be non leaf with 1 more layer under
+            root.add_one_more_layer()
+
+            #que implementation of bfs
+            que = deque([root])
+
+            #ends because there is at least 1 solution found
+            while que:
+                cur = que.popleft()
+                if is_solved(cur.cube):
+
+                    #get the solution from all parents
+                    solution = []
+                    while cur is not None:
+                        solution.append(cur.actionInd)
+                        cur = cur.parent
+                    return solution [::-1]
+                else:
+
+                    for i in cur.children:
+                        que.append(cur.children[i])
 
 
 import random
@@ -147,9 +184,10 @@ for modelName in list(os.walk('models')) [0] [-1]:
 
     print(modelName)
     with open('results.txt', 'a') as z:
-        z.write('\t'.join(map(str , [time.time(), 'Model name' , modelName, 'Time limit',time_limit,'Tried',trials]))) + '\n')
+        z.write('\t'.join(map(str , [time.time(), 'Model name' , modelName, 'Time limit',time_limit,'Tried',trials])) + '\n')
 
-    model = ADINet
+    model = ADINet()
+
     if torch.cuda.is_available():
         data = torch.load("models/"  + modelName) ["model"]
     else:
@@ -158,7 +196,7 @@ for modelName in list(os.walk('models')) [0] [-1]:
     model.load_state_dict(data)
     model.eval()
 
-    for steps in range(2, 15,2):
+    for steps in range(2, 15, 2):
        
         solved = 0
         average_length_solved = 0
@@ -166,9 +204,9 @@ for modelName in list(os.walk('models')) [0] [-1]:
         for repeats in range(trials):
 
             initial_cube = gen(steps)
-            res, _ =solve(initial_cube.copy(), model, time_limit)
+            res =solve(initial_cube.copy(), model, time_limit)
 
-            if res and is_solved(initial_cube(' '.join(ACTIONS[i] for i in res[1:])))
+            if res and is_solved(initial_cube(' '.join(ACTIONS[i] for i in res[1:]))):
                #double checking that the cube can be actually solved
                solved += 1
                average_length_solved += len(res)-1
