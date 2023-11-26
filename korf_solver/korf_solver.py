@@ -15,6 +15,7 @@
 
 import numpy as np
 import sqlite3
+import time
 import random
 from korf_environment import *
 
@@ -129,8 +130,12 @@ def scramble_and_solve(scrambles):
         scrambled_state = rotate(scrambled_state, scramble[0], scramble[1])
 
     print('2) Get the solution')
+    start = time.time()
     actions = get_action_path(ida_star(scrambled_state))
+    end = time.time()
+    elapsed_time = end - start
     print('Number of moves to solve:', len(actions))
+    print('Time to solve (seconds):', round(elapsed_time, 2))
     print('Moves to solve:', actions)
 
     print('3) Solve the cube')
@@ -138,6 +143,8 @@ def scramble_and_solve(scrambles):
     for action in actions:
         solved_state = rotate(solved_state, action[0], action[1])
     print('Solved:', check_goal_state(solved_state))
+
+    return elapsed_time
 
 def get_random_scrambles(n_scrambles):
     scrambles = []
@@ -150,13 +157,16 @@ def get_random_scrambles(n_scrambles):
     return scrambles
 
 def run_multiple_tests(n_scrambles, n_tests):
+    elapsed_times = []
     for i in range(n_tests):
         print('----------')
         print('Test', i+1)
         print('----------')
         scrambles = get_random_scrambles(n_scrambles)
-        scramble_and_solve(scrambles)
+        elapsed_time = scramble_and_solve(scrambles)
+        elapsed_times.append(elapsed_time)
         print()
+    print('Average time to solve (seconds):', round(sum(elapsed_times)/n_tests, 2))
     return
 
 # result always has same number of moves as scrambles (otherwise too slow)
