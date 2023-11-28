@@ -134,7 +134,8 @@ def scramble_and_solve(scrambles):
     actions = get_action_path(ida_star(scrambled_state))
     end = time.time()
     elapsed_time = end - start
-    print('Number of moves to solve:', len(actions))
+    n_moves_solution = len(actions)
+    print('Number of moves to solve:', n_moves_solution)
     print('Time to solve (seconds):', round(elapsed_time, 2))
     print('Moves to solve:', actions)
 
@@ -144,7 +145,7 @@ def scramble_and_solve(scrambles):
         solved_state = rotate(solved_state, action[0], action[1])
     print('Solved:', check_goal_state(solved_state))
 
-    return elapsed_time
+    return elapsed_time, n_moves_solution
 
 def get_random_scrambles(n_scrambles):
     scrambles = []
@@ -158,15 +159,18 @@ def get_random_scrambles(n_scrambles):
 
 def run_multiple_tests(n_scrambles, n_tests):
     elapsed_times = []
+    n_moves = []
     for i in range(n_tests):
         print('----------')
         print('Test', i+1)
         print('----------')
         scrambles = get_random_scrambles(n_scrambles)
-        elapsed_time = scramble_and_solve(scrambles)
+        elapsed_time, n_moves_solution = scramble_and_solve(scrambles)
         elapsed_times.append(elapsed_time)
+        n_moves.append(n_moves_solution)
         print()
     print('Average time to solve (seconds):', round(sum(elapsed_times)/n_tests, 2))
+    print('Average number of moves to solve:', round(sum(n_moves)/n_tests, 2))
     return
 
 # result always has same number of moves as scrambles (otherwise too slow)
